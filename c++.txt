@@ -1,0 +1,195 @@
+
+#include <stdio.h>
+
+#define MAX 100
+
+typedef struct {
+    int pid;
+    int arrivalTime;
+    int burstTime;
+    int completionTime;
+    int turnaroundTime;
+    int waitingTime;
+} Process;
+
+typedef struct {
+    int items[MAX];
+    int front;
+    int rear;
+} Queue;
+
+void initializeQueue(Queue *q) {
+    q->front = 0;
+    q->rear = -1;
+}
+
+int isEmpty(Queue *q) {
+    return q->front > q->rear;
+}
+
+int isFull(Queue *q) {
+    return q->rear == MAX - 1;
+}
+
+void enqueue(Queue *q, int processIndex) {
+    if (isFull(q)) {
+        printf("Queue is full!\n");
+        return;
+    }
+
+    q->items[++q->rear] = processIndex;
+}
+
+int dequeue(Queue *q) {
+    if (isEmpty(q)) {
+        return -1;
+    }
+
+    return q->items[q->front++];
+}
+
+void sortByArrival(Process p[], int n) {
+    int i, j;
+    Process temp;
+
+    for (i = 1; i < n; i++) {
+        temp = p[i];
+        j = i - 1;
+
+        while (j >= 0 &&
+               p[j].arrivalTime > temp.arrivalTime) {
+            p[j + 1] = p[j];
+            j--;
+        }
+
+        p[j + 1] = temp;
+    }
+}
+
+void executeFCFS(Process p[], int n) {
+    Queue q;
+    int nextProcess = 0;
+    int currentTime = 0;
+    int completed = 0;
+    int i, index;
+
+    double totalWaitingTime = 0;
+    double totalTurnaroundTime = 0;
+
+    initializeQueue(&q);
+
+    printf("\n========== FCFS SCHEDULING ==========\n");
+
+    while (completed < n) {
+        while (nextProcess < n &&
+               p[nextProcess].arrivalTime <= currentTime) {
+            enqueue(&q, nextProcess);
+            nextProcess++;
+        }
+
+        if (isEmpty(&q)) {
+            if (nextProcess < n) {
+                currentTime = p[nextProcess].arrivalTime;
+                continue;
+            }
+        }
+
+        index = dequeue(&q);
+
+        if (index == -1) {
+            continue;
+        }
+
+        if (currentTime < p[index].arrivalTime) {
+            currentTime = p[index].arrivalTime;
+        }
+
+        currentTime += p[index].burstTime;
+
+        p[index].completionTime = currentTime;
+
+        p[index].turnaroundTime =
+            p[index].completionTime - p[index].arrivalTime;
+
+        p[index].waitingTime =
+            p[index].turnaroundTime - p[index].burstTime;
+
+        totalWaitingTime += p[index].waitingTime;
+        totalTurnaroundTime += p[index].turnaroundTime;
+
+        completed++;
+
+        while (nextProcess < n &&
+               p[nextProcess].arrivalTime <= currentTime) {
+            enqueue(&q, nextProcess);
+            nextProcess++;
+        }
+    }
+
+    printf("\nProcess Execution Results:\n");
+    printf("--------------------------------------------------\n");
+    printf("PID\tAT\tBT\tCT\tTAT\tWT\n");
+    printf("--------------------------------------------------\n");
+
+    for (i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t%d\t%d\n",
+               p[i].pid,
+               p[i].arrivalTime,
+               p[i].burstTime,
+               p[i].completionTime,
+               p[i].turnaroundTime,
+               p[i].waitingTime);
+    }
+
+    printf("--------------------------------------------------\n");
+
+    printf("Average Waiting Time     : %.2f\n",
+           totalWaitingTime / n);
+
+    printf("Average Turnaround Time  : %.2f\n",
+           totalTurnaroundTime / n);
+}
+
+int main(void) {
+    Process p[MAX];
+    int n, i;
+
+    printf("============================================\n");
+    printf(" CPU PROCESS SCHEDULING SIMULATOR\n");
+    printf(" First-Come, First-Served (FCFS) using Queue\n");
+    printf("============================================\n");
+
+    printf("Enter number of processes (1-%d): ", MAX);
+
+    if (scanf("%d", &n) != 1 || n < 1 || n > MAX) {
+        printf("Invalid number of processes!\n");
+        return 1;
+    }
+
+    for (i = 0; i < n; i++) {
+        p[i].pid = i + 1;
+
+        printf("\nEnter arrival time for P%d: ", i + 1);
+
+        if (scanf("%d", &p[i].arrivalTime) != 1 ||
+            p[i].arrivalTime < 0) {
+            printf("Invalid arrival time!\n");
+            return 1;
+        }
+
+        printf("Enter burst time for P%d: ", i + 1);
+
+        if (scanf("%d", &p[i].burstTime) != 1 ||
+            p[i].burstTime <= 0) {
+            printf("Burst time must be positive!\n");
+            return 1;
+        }
+    }
+
+    sortByArrival(p, n);
+    executeFCFS(p, n);
+
+    printf("\nScheduling completed successfully.\n");
+
+    return 0;
+}
